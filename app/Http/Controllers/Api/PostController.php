@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Post;
 use App\Http\Resources\PostResource;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class PostController extends Controller
 {
@@ -49,10 +50,63 @@ class PostController extends Controller
      */
     public function show($id)
     {
-        //find post by ID
         $post = Post::find($id);
 
-        //return single post as a resource
         return new PostResource(true, 'Detail Data Post!', $post);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'title'     => 'required',
+            'content'   => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $post = Post::find($id);
+
+        if ($request->hasFile('image')) {
+
+            //upload image
+            $image = $request->file('image');
+            $image->storeAs('public/posts', $image->hashName());
+
+            Storage::delete('public/posts/' . basename($post->image));
+
+            $post->update([
+                'image'     => $image->hashName(),
+                'title'     => $request->title,
+                'content'   => $request->content,
+            ]);
+        } else {
+
+            $post->update([
+                'title'     => $request->title,
+                'content'   => $request->content,
+            ]);
+        }
+
+        return new PostResource(true, 'Data Post Berhasil Diubah!', $post);
+    }
+
+    /**
+     * destroy
+     *
+     * @param  mixed $id
+     * @return void
+     */
+    public function destroy($id)
+    {
+
+        $post = Post::find($id);
+
+        Storage::delete('public/posts/'.basename($post->image));
+
+        $post->delete();
+
+        return new PostResource(true, 'Data Post Berhasil Dihapus!', null);
     }
 }
